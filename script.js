@@ -9,6 +9,83 @@ let currentFilter = 'all';
 let justCompletedId = null; // việc vừa tích xong, để chạy hiệu ứng sau khi vẽ lại
 const reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
 
+// ================== Âm thanh (Web Audio API, không cần file) ==================
+const Sound = (() => {
+  let ctx = null;
+  let muted = false;
+  try { muted = localStorage.getItem('todo-sound-muted') === '1'; } catch { /* bỏ qua */ }
+
+  function getCtx() {
+    if (!ctx) {
+      const AC = window.AudioContext || window.webkitAudioContext;
+      if (!AC) return null;
+      ctx = new AC();
+    }
+    if (ctx.state === 'suspended') ctx.resume();
+    return ctx;
+  }
+
+  // Phát 1 nốt: tần số, độ trễ (giây), độ dài, kiểu sóng, âm lượng, trượt tới tần số khác
+  function tone(freq, when = 0, dur = 0.15, type = 'sine', vol = 0.15, slideTo = null) {
+    const c = getCtx();
+    if (!c) return;
+    const t = c.currentTime + when;
+    const osc = c.createOscillator();
+    const gain = c.createGain();
+    osc.type = type;
+    osc.frequency.setValueAtTime(freq, t);
+    if (slideTo) osc.frequency.exponentialRampToValueAtTime(slideTo, t + dur);
+    gain.gain.setValueAtTime(0.0001, t);
+    gain.gain.exponentialRampToValueAtTime(vol, t + 0.01);
+    gain.gain.exponentialRampToValueAtTime(0.0001, t + dur);
+    osc.connect(gain).connect(c.destination);
+    osc.start(t);
+    osc.stop(t + dur + 0.03);
+  }
+
+  const sounds = {
+    // Bấm nút thường: chuyển ngày, bộ lọc
+    click: () => tone(900, 0, 0.05, 'triangle', 0.06),
+    // Thêm việc: "pốp" đi lên
+    add: () => { tone(520, 0, 0.09, 'sine', 0.12, 780); tone(880, 0.07, 0.12, 'sine', 0.1); },
+    // Tích xong: chuông 3 nốt Mi – Sol – Đô
+    complete: () => {
+      tone(659.25, 0, 0.14, 'sine', 0.13);
+      tone(783.99, 0.08, 0.14, 'sine', 0.13);
+      tone(1046.5, 0.16, 0.3, 'sine', 0.14);
+    },
+    // Xong hết việc trong ngày: hợp âm rải dài hơn
+    allDone: () => {
+      [523.25, 659.25, 783.99, 1046.5].forEach((f, i) => tone(f, i * 0.1, 0.22, 'triangle', 0.11));
+      tone(1046.5, 0.42, 0.6, 'sine', 0.09);
+      tone(1318.5, 0.42, 0.6, 'sine', 0.11);
+      tone(1568, 0.42, 0.6, 'sine', 0.07);
+    },
+    // Bỏ tích: trượt xuống nhẹ
+    uncheck: () => tone(600, 0, 0.14, 'sine', 0.1, 380),
+    // Bấm xoá lần 1 (hỏi lại)
+    confirm: () => tone(440, 0, 0.08, 'square', 0.04),
+    // Xoá thật
+    remove: () => tone(320, 0, 0.22, 'triangle', 0.13, 110),
+    // Nhập thiếu / sai giờ
+    error: () => { tone(220, 0, 0.12, 'square', 0.05); tone(185, 0.13, 0.16, 'square', 0.05); },
+    // Thêm việc nhưng trùng giờ
+    warn: () => { tone(520, 0, 0.09, 'sine', 0.1, 700); tone(392, 0.12, 0.18, 'triangle', 0.09); },
+  };
+
+  return {
+    play(name) {
+      if (muted || !sounds[name]) return;
+      try { sounds[name](); } catch { /* trình duyệt không hỗ trợ: im lặng */ }
+    },
+    isMuted: () => muted,
+    setMuted(value) {
+      muted = value;
+      try { localStorage.setItem('todo-sound-muted', value ? '1' : '0'); } catch { /* bỏ qua */ }
+    },
+  };
+})();
+
 // ================== Lấy phần tử ==================
 const $ = (id) => document.getElementById(id);
 const form = $('taskForm');
@@ -251,8 +328,15 @@ function showToast(message, isCelebrate) {
   }, 2600);
 }
 
+// Âm thanh khi tích xong: chuông thường, hoặc nhạc mừng nếu đây là việc cuối cùng của ngày
+function playCompleteSound(task) {
+  const othersLeft = tasks.filter((t) => t.date === task.date && !t.done && t.id !== task.id).length;
+  Sound.play(othersLeft === 0 ? 'allDone' : 'complete');
+}
+
 // Đánh dấu xong + chạy hiệu ứng; originEl là nút tích được bấm
-function completeTask(task, originEl) {
+function completeTask(task, originEl, soundPlayed = false) {
+  if (!soundPlayed) playCompleteSound(task);
   const rect = originEl.getBoundingClientRect();
   const x = rect.left + rect.width / 2;
   const y = rect.top + rect.height / 2;
@@ -388,10 +472,12 @@ form.addEventListener('submit', (e) => {
 
   if (!name || !start || !end) {
     formError.textContent = 'Vui lòng nhập đủ tên công việc và thời gian.';
+    Sound.play('error');
     return;
   }
   if (toMinutes(end) <= toMinutes(start)) {
     formError.textContent = 'Giờ kết thúc phải sau giờ bắt đầu.';
+    Sound.play('error');
     return;
   }
 
@@ -418,8 +504,17 @@ form.addEventListener('submit', (e) => {
   if (overlap) {
     formError.textContent = `Lưu ý: khung giờ này trùng với "${overlap.name}".`;
   }
+  Sound.play(overlap ? 'warn' : 'add');
   render();
 });
+
+// Các ô nhập bị trình duyệt chặn vì bỏ trống (thuộc tính required) cũng kêu báo lỗi
+let lastInvalidAt = 0;
+form.addEventListener('invalid', () => {
+  // nhiều ô cùng trống chỉ kêu 1 lần
+  if (Date.now() - lastInvalidAt > 300) Sound.play('error');
+  lastInvalidAt = Date.now();
+}, true);
 
 // Uỷ quyền sự kiện cho danh sách (tích / xoá)
 list.addEventListener('click', (e) => {
@@ -434,10 +529,12 @@ list.addEventListener('click', (e) => {
       completeTask(task, btn); // tích xong: có hiệu ứng
       return;
     }
-    task.done = false; // bỏ tích: không hiệu ứng
+    task.done = false; // bỏ tích: không hiệu ứng hình
+    Sound.play('uncheck');
   } else if (btn.dataset.action === 'delete') {
     // Bấm lần 1: hỏi xác nhận ngay trên nút; bấm lần 2 trong 3 giây: xoá
     if (btn.dataset.confirm !== '1') {
+      Sound.play('confirm');
       btn.dataset.confirm = '1';
       btn.textContent = 'Xoá?';
       btn.classList.add('confirming');
@@ -450,6 +547,7 @@ list.addEventListener('click', (e) => {
       return;
     }
     tasks = tasks.filter((t) => t.id !== id);
+    Sound.play('remove');
   }
   saveTasks();
   render();
@@ -462,17 +560,19 @@ $('weekGroups').addEventListener('click', (e) => {
     const task = tasks.find((t) => t.id === check.dataset.id);
     if (!task || check.disabled) return;
     check.disabled = true;
+    playCompleteSound(task); // kêu ngay khi bấm, không đợi hiệu ứng trượt
     if (reduceMotion) {
-      completeTask(task, check);
+      completeTask(task, check, true);
     } else {
       // Cho việc trượt ra khỏi cột rồi mới cập nhật
       check.closest('.week-item').classList.add('leaving');
-      setTimeout(() => completeTask(task, check), 330);
+      setTimeout(() => completeTask(task, check, true), 330);
     }
     return;
   }
   const head = e.target.closest('.week-day-head');
   if (head) {
+    Sound.play('click');
     currentDate = head.dataset.date;
     formError.textContent = '';
     render();
@@ -482,6 +582,7 @@ $('weekGroups').addEventListener('click', (e) => {
 // Bộ lọc
 document.querySelectorAll('.filter').forEach((btn) => {
   btn.addEventListener('click', () => {
+    Sound.play('click');
     document.querySelectorAll('.filter').forEach((b) => b.classList.remove('active'));
     btn.classList.add('active');
     currentFilter = btn.dataset.filter;
@@ -491,6 +592,7 @@ document.querySelectorAll('.filter').forEach((btn) => {
 
 // Chuyển ngày
 function shiftDay(delta) {
+  Sound.play('click');
   const d = fromKey(currentDate);
   d.setDate(d.getDate() + delta);
   currentDate = toKey(d);
@@ -500,9 +602,39 @@ function shiftDay(delta) {
 $('prevDay').addEventListener('click', () => shiftDay(-1));
 $('nextDay').addEventListener('click', () => shiftDay(1));
 $('todayBtn').addEventListener('click', () => {
+  Sound.play('click');
   currentDate = toKey(new Date());
   render();
 });
+
+// Nút bật/tắt âm thanh
+const SOUND_ON_SVG = `
+  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+    <path d="M11 5 6 9H2v6h4l5 4V5z"></path>
+    <path d="M15.5 8.5a5 5 0 0 1 0 7"></path>
+    <path d="M19 5a10 10 0 0 1 0 14"></path>
+  </svg>`;
+const SOUND_OFF_SVG = `
+  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+    <path d="M11 5 6 9H2v6h4l5 4V5z"></path>
+    <line x1="22" y1="9" x2="16" y2="15"></line>
+    <line x1="16" y1="9" x2="22" y2="15"></line>
+  </svg>`;
+
+function renderSoundBtn() {
+  const btn = $('soundBtn');
+  const muted = Sound.isMuted();
+  btn.innerHTML = muted ? SOUND_OFF_SVG : SOUND_ON_SVG;
+  btn.classList.toggle('muted', muted);
+  btn.setAttribute('aria-pressed', String(muted));
+  btn.setAttribute('aria-label', muted ? 'Bật âm thanh' : 'Tắt âm thanh');
+}
+$('soundBtn').addEventListener('click', () => {
+  Sound.setMuted(!Sound.isMuted());
+  renderSoundBtn();
+  Sound.play('click'); // chỉ kêu khi vừa bật lại
+});
+renderSoundBtn();
 
 // Cập nhật số ngày còn lại mỗi phút
 setInterval(render, 60 * 1000);

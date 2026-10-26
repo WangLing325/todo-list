@@ -81,6 +81,9 @@ button { font-family: inherit; cursor: pointer; }
 .icon-btn { width: 38px; font-size: 22px; line-height: 1; }
 .today-btn { padding: 0 14px; font-size: 14px; }
 .icon-btn:hover, .today-btn:hover { background: var(--blue-50); border-color: var(--blue-500); }
+.sound-btn { display: grid; place-items: center; margin-right: 4px; }
+.sound-btn svg { width: 18px; height: 18px; }
+.sound-btn.muted { color: var(--muted); background: var(--blue-50); }
 
 /* ---------- Stats ---------- */
 .stats {

@@ -10,6 +10,7 @@
 - Việc **đã xong** hiện **tích xanh** ✅, kèm hiệu ứng: dấu tích tự vẽ, gạch ngang chữ, pháo giấy và thông báo nhỏ; xong hết việc trong ngày thì pháo giấy bắn to hơn (tự tắt nếu hệ điều hành bật chế độ giảm chuyển động)
 - Việc **chưa làm** hiện **cảnh báo phải hoàn thành trong tuần** (hạn chót Chủ nhật), kèm số ngày còn lại; quá tuần thì báo **quá hạn** màu đỏ
 - **Cột tổng kết tuần** bên phải: gom mọi việc chưa xong trong tuần theo từng ngày, kèm tổng số việc, tổng thời gian và hạn chót; tích xong nhanh ngay tại cột, bấm tên ngày để chuyển sang ngày đó
+- **Âm thanh** cho các thao tác (thêm việc, tích xong, xong hết việc trong ngày, bỏ tích, xoá, báo lỗi, chuyển ngày, lọc), tạo bằng Web Audio API nên không cần file âm thanh; có nút bật/tắt và web nhớ lựa chọn
 - Lọc: Tất cả / Chưa làm / Đã xong
 - Xem các ngày trước / sau, nút quay về hôm nay
 - Cảnh báo khi khung giờ bị trùng
