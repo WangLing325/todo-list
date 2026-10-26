@@ -1,0 +1,85 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>To-Do List Trong Ngày</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <main class="app">
+    <!-- Tiêu đề + điều hướng ngày -->
+    <header class="header">
+      <div>
+        <p class="eyebrow">Kế hoạch trong ngày</p>
+        <h1 id="dateTitle">Hôm nay</h1>
+      </div>
+      <div class="day-nav">
+        <button id="prevDay" class="icon-btn" aria-label="Ngày trước">&#8249;</button>
+        <button id="todayBtn" class="today-btn">Hôm nay</button>
+        <button id="nextDay" class="icon-btn" aria-label="Ngày sau">&#8250;</button>
+      </div>
+    </header>
+
+    <!-- Thống kê -->
+    <section class="stats">
+      <div class="stat">
+        <span id="statTotal">0</span>
+        <small>Công việc</small>
+      </div>
+      <div class="stat">
+        <span id="statDone">0</span>
+        <small>Đã xong</small>
+      </div>
+      <div class="stat">
+        <span id="statHours">0</span>
+        <small>Tổng thời gian</small>
+      </div>
+      <div class="stat stat-warn">
+        <span id="statWeek">0</span>
+        <small>Chưa xong trong tuần</small>
+      </div>
+    </section>
+
+    <div class="progress" aria-label="Tiến độ trong ngày">
+      <div id="progressBar" class="progress-bar"></div>
+    </div>
+    <p id="progressText" class="progress-text">0% hoàn thành</p>
+
+    <!-- Form thêm việc -->
+    <form id="taskForm" class="task-form" autocomplete="off">
+      <input id="taskName" type="text" placeholder="Bạn cần làm gì?" maxlength="100" required>
+      <div class="time-row">
+        <label>
+          Bắt đầu
+          <input id="startTime" type="time" required>
+        </label>
+        <label>
+          Kết thúc
+          <input id="endTime" type="time" required>
+        </label>
+        <button type="submit" class="btn-primary">+ Thêm việc</button>
+      </div>
+      <p id="formError" class="form-error" role="alert"></p>
+    </form>
+
+    <!-- Bộ lọc -->
+    <div class="filters" role="tablist">
+      <button class="filter active" data-filter="all">Tất cả</button>
+      <button class="filter" data-filter="pending">Chưa làm</button>
+      <button class="filter" data-filter="done">Đã xong</button>
+    </div>
+
+    <!-- Danh sách việc theo dòng thời gian -->
+    <ul id="taskList" class="task-list"></ul>
+    <p id="emptyState" class="empty">Chưa có công việc nào. Thêm việc đầu tiên ở trên nhé!</p>
+
+    <footer class="footer">Dữ liệu được lưu ngay trên trình duyệt của bạn.</footer>
+  </main>
+
+  <script src="script.js"></script>
+</body>
+</html>
