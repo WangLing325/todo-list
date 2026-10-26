@@ -9,6 +9,7 @@
 - Thanh tiến độ % hoàn thành của ngày
 - Việc **đã xong** hiện **tích xanh** ✅
 - Việc **chưa làm** hiện **cảnh báo phải hoàn thành trong tuần** (hạn chót Chủ nhật), kèm số ngày còn lại; quá tuần thì báo **quá hạn** màu đỏ
+- **Cột tổng kết tuần** bên phải: gom mọi việc chưa xong trong tuần theo từng ngày, kèm tổng số việc, tổng thời gian và hạn chót; tích xong nhanh ngay tại cột, bấm tên ngày để chuyển sang ngày đó
 - Lọc: Tất cả / Chưa làm / Đã xong
 - Xem các ngày trước / sau, nút quay về hôm nay
 - Cảnh báo khi khung giờ bị trùng

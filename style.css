@@ -32,9 +32,18 @@ body {
 
 button { font-family: inherit; cursor: pointer; }
 
-.app {
-  max-width: 720px;
+/* Bố cục 2 cột: danh sách bên trái, tổng kết tuần bên phải */
+.layout {
+  max-width: 1100px;
   margin: 0 auto;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 340px;
+  gap: 20px;
+  align-items: start;
+}
+
+.app {
+  min-width: 0;
   background: var(--white);
   border-radius: 20px;
   box-shadow: var(--shadow);
@@ -246,8 +255,121 @@ button:focus-visible { outline: 2px solid var(--blue-500); outline-offset: 2px; 
 .empty { text-align: center; color: var(--muted); padding: 28px 0; }
 .footer { text-align: center; font-size: 12px; color: #9fb3c8; margin-top: 24px; }
 
+/* ---------- Cột tổng kết tuần ---------- */
+.week-panel {
+  background: var(--white);
+  border-radius: 20px;
+  box-shadow: var(--shadow);
+  padding: 22px;
+  position: sticky;
+  top: 24px;
+  max-height: calc(100vh - 48px);
+  overflow-y: auto;
+  min-width: 0;
+}
+.week-head h2 { font-size: 19px; color: var(--blue-900); margin-top: 4px; }
+.week-range { font-size: 13px; color: var(--muted); margin-top: 2px; }
+
+.week-summary {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+  margin-top: 16px;
+}
+.week-summary > div {
+  background: var(--amber-bg);
+  border: 1px solid #f6dca0;
+  border-radius: 12px;
+  padding: 10px;
+  text-align: center;
+}
+.week-summary span {
+  display: block;
+  font-size: 22px;
+  font-weight: 700;
+  color: var(--amber);
+  font-variant-numeric: tabular-nums;
+}
+.week-summary small { font-size: 12px; color: var(--muted); }
+
+.week-deadline {
+  margin-top: 10px;
+  padding: 8px 10px;
+  border-radius: 10px;
+  font-size: 13px;
+  font-weight: 500;
+  background: var(--amber-bg);
+  color: var(--amber);
+}
+.week-deadline.overdue { background: var(--red-bg); color: var(--red); }
+.week-deadline.clear { background: var(--green-bg); color: var(--green); }
+
+.week-groups { display: flex; flex-direction: column; gap: 14px; margin-top: 16px; }
+
+.week-day-head {
+  width: 100%;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 8px;
+  border: none;
+  background: none;
+  padding: 0 0 6px;
+  border-bottom: 1px solid var(--border);
+  color: var(--blue-700);
+  font-size: 14px;
+  font-weight: 600;
+  text-align: left;
+}
+.week-day-head:hover .week-day-name { text-decoration: underline; }
+.week-day-count { color: var(--muted); font-weight: 500; font-size: 12px; white-space: nowrap; }
+.week-tag {
+  margin-left: 6px;
+  padding: 1px 7px;
+  border-radius: 99px;
+  background: var(--blue-100);
+  color: var(--blue-700);
+  font-size: 11px;
+  font-weight: 600;
+}
+
+.week-items { list-style: none; display: flex; flex-direction: column; gap: 6px; margin-top: 8px; }
+.week-item {
+  display: grid;
+  grid-template-columns: 26px 44px minmax(0, 1fr);
+  gap: 8px;
+  align-items: center;
+  padding: 8px 10px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: var(--blue-50);
+}
+.week-check {
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  border: 2px solid #f0c36a;
+  background: var(--white);
+  display: grid;
+  place-items: center;
+  transition: all .2s;
+}
+.week-check svg { width: 13px; height: 13px; opacity: 0; transition: opacity .2s; }
+.week-check:hover { border-color: var(--green); background: var(--green); }
+.week-check:hover svg { opacity: 1; }
+.week-item-time { font-size: 12px; color: var(--muted); font-variant-numeric: tabular-nums; }
+.week-item-name { font-size: 14px; word-break: break-word; }
+.week-empty { margin-top: 16px; text-align: center; color: var(--green); font-size: 14px; }
+
+/* ---------- Tablet: cột tuần xuống dưới ---------- */
+@media (max-width: 900px) {
+  .layout { grid-template-columns: 1fr; max-width: 720px; }
+  .week-panel { position: static; max-height: none; }
+}
+
 /* ---------- Mobile ---------- */
 @media (max-width: 560px) {
+  .week-panel { padding: 18px; }
   body { padding-block: 16px; }
   .app { padding: 18px; }
   .stats { grid-template-columns: repeat(2, 1fr); }

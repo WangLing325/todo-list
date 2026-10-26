@@ -10,6 +10,7 @@
   <link rel="stylesheet" href="style.css">
 </head>
 <body>
+  <div class="layout">
   <main class="app">
     <!-- Tiêu đề + điều hướng ngày -->
     <header class="header">
@@ -79,6 +80,32 @@
 
     <footer class="footer">Dữ liệu được lưu ngay trên trình duyệt của bạn.</footer>
   </main>
+
+  <!-- Cột phải: tổng hợp việc chưa làm trong tuần -->
+  <aside class="week-panel" aria-labelledby="weekTitle">
+    <div class="week-head">
+      <p class="eyebrow">Tổng kết tuần</p>
+      <h2 id="weekTitle">Chưa làm trong tuần</h2>
+      <p id="weekRange" class="week-range"></p>
+    </div>
+
+    <div class="week-summary">
+      <div>
+        <span id="weekCount">0</span>
+        <small>việc tồn đọng</small>
+      </div>
+      <div>
+        <span id="weekTime">0</span>
+        <small>thời gian cần</small>
+      </div>
+    </div>
+
+    <p id="weekDeadline" class="week-deadline"></p>
+
+    <div id="weekGroups" class="week-groups"></div>
+    <p id="weekEmpty" class="week-empty" hidden>Tuần này không còn việc nào tồn đọng. Tuyệt vời!</p>
+  </aside>
+  </div>
 
   <script src="script.js"></script>
 </body>

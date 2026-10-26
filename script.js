@@ -204,6 +204,111 @@ function render() {
   emptyState.textContent = dayTasks.length
     ? 'Không có công việc nào khớp bộ lọc.'
     : 'Chưa có công việc nào. Thêm việc đầu tiên ở trên nhé!';
+
+  renderWeekPanel(viewDate);
+}
+
+// ================== Cột tổng kết tuần ==================
+function renderWeekPanel(viewDate) {
+  const weekStart = startOfWeek(viewDate);
+  const weekEnd = endOfWeek(viewDate);
+  const todayKey = toKey(new Date());
+
+  $('weekRange').textContent =
+    `Thứ Hai ${formatDate(weekStart)} – Chủ nhật ${formatDate(weekEnd)}/${weekEnd.getFullYear()}`;
+
+  // Tất cả việc chưa xong trong tuần đang xem
+  const pending = tasks
+    .filter((t) => {
+      const d = fromKey(t.date);
+      return !t.done && d >= weekStart && d <= weekEnd;
+    })
+    .sort((a, b) => a.date.localeCompare(b.date) || a.start.localeCompare(b.start));
+
+  const totalMin = pending.reduce((sum, t) => sum + toMinutes(t.end) - toMinutes(t.start), 0);
+  $('weekCount').textContent = pending.length;
+  $('weekTime').textContent = formatHoursShort(totalMin);
+
+  // Dòng hạn chót của tuần
+  const deadlineEl = $('weekDeadline');
+  const now = new Date();
+  if (!pending.length) {
+    deadlineEl.className = 'week-deadline clear';
+    deadlineEl.textContent = '✓ Đã hoàn thành hết việc trong tuần';
+  } else if (now > weekEnd) {
+    deadlineEl.className = 'week-deadline overdue';
+    deadlineEl.textContent = `⛔ Tuần đã kết thúc, còn ${pending.length} việc chưa hoàn thành`;
+  } else {
+    const daysLeft = Math.round((fromKey(toKey(weekEnd)) - fromKey(todayKey)) / DAY_MS);
+    const left = daysLeft === 0 ? 'hôm nay là hạn chót' : `còn ${daysLeft} ngày`;
+    deadlineEl.className = 'week-deadline';
+    deadlineEl.textContent = `⚠ Hạn chót: Chủ nhật ${formatDate(weekEnd)} (${left})`;
+  }
+
+  // Gom theo ngày
+  const groups = {};
+  pending.forEach((t) => (groups[t.date] = groups[t.date] || []).push(t));
+
+  const container = $('weekGroups');
+  container.innerHTML = '';
+
+  Object.keys(groups).forEach((dateKey) => {
+    const date = fromKey(dateKey);
+    const section = document.createElement('section');
+
+    // Tiêu đề ngày: bấm để chuyển sang ngày đó
+    const head = document.createElement('button');
+    head.className = 'week-day-head';
+    head.dataset.date = dateKey;
+    head.setAttribute('aria-label', `Xem ${WEEKDAYS[date.getDay()]} ${formatDate(date)}`);
+
+    const nameWrap = document.createElement('span');
+    const dayName = document.createElement('span');
+    dayName.className = 'week-day-name';
+    dayName.textContent = `${WEEKDAYS[date.getDay()]} ${formatDate(date)}`;
+    nameWrap.appendChild(dayName);
+    if (dateKey === todayKey || dateKey === currentDate) {
+      const tag = document.createElement('span');
+      tag.className = 'week-tag';
+      tag.textContent = dateKey === todayKey ? 'Hôm nay' : 'Đang xem';
+      nameWrap.appendChild(tag);
+    }
+
+    const count = document.createElement('span');
+    count.className = 'week-day-count';
+    count.textContent = `${groups[dateKey].length} việc`;
+    head.append(nameWrap, count);
+
+    // Danh sách việc của ngày
+    const ul = document.createElement('ul');
+    ul.className = 'week-items';
+    groups[dateKey].forEach((t) => {
+      const li = document.createElement('li');
+      li.className = 'week-item';
+
+      const check = document.createElement('button');
+      check.className = 'week-check';
+      check.dataset.id = t.id;
+      check.setAttribute('aria-label', `Đánh dấu "${t.name}" đã xong`);
+      check.innerHTML = CHECK_SVG;
+
+      const time = document.createElement('span');
+      time.className = 'week-item-time';
+      time.textContent = t.start;
+
+      const name = document.createElement('span');
+      name.className = 'week-item-name';
+      name.textContent = t.name;
+
+      li.append(check, time, name);
+      ul.appendChild(li);
+    });
+
+    section.append(head, ul);
+    container.appendChild(section);
+  });
+
+  $('weekEmpty').hidden = pending.length > 0;
 }
 
 // ================== Sự kiện ==================
@@ -277,6 +382,26 @@ list.addEventListener('click', (e) => {
   }
   saveTasks();
   render();
+});
+
+// Cột tuần: tích xong nhanh hoặc bấm tên ngày để chuyển sang ngày đó
+$('weekGroups').addEventListener('click', (e) => {
+  const check = e.target.closest('.week-check');
+  if (check) {
+    const task = tasks.find((t) => t.id === check.dataset.id);
+    if (task) {
+      task.done = true;
+      saveTasks();
+      render();
+    }
+    return;
+  }
+  const head = e.target.closest('.week-day-head');
+  if (head) {
+    currentDate = head.dataset.date;
+    formError.textContent = '';
+    render();
+  }
 });
 
 // Bộ lọc
