@@ -6,6 +6,8 @@ const DAY_MS = 24 * 60 * 60 * 1000;
 let tasks = loadTasks();
 let currentDate = toKey(new Date()); // ngày đang xem, dạng "YYYY-MM-DD"
 let currentFilter = 'all';
+let justCompletedId = null; // việc vừa tích xong, để chạy hiệu ứng sau khi vẽ lại
+const reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
 
 // ================== Lấy phần tử ==================
 const $ = (id) => document.getElementById(id);
@@ -116,7 +118,7 @@ const BADGE_ICON = { done: '✓', warn: '⚠', overdue: '⛔' };
 function createTaskItem(task) {
   const status = getStatus(task);
   const li = document.createElement('li');
-  li.className = `task ${task.done ? 'done' : ''} ${status.type === 'overdue' ? 'overdue' : ''}`;
+  li.className = `task ${task.done ? 'done' : ''} ${status.type === 'overdue' ? 'overdue' : ''} ${task.id === justCompletedId ? 'just-done' : ''}`;
   li.dataset.id = task.id;
 
   // Cột thời gian
@@ -206,6 +208,70 @@ function render() {
     : 'Chưa có công việc nào. Thêm việc đầu tiên ở trên nhé!';
 
   renderWeekPanel(viewDate);
+  justCompletedId = null; // hiệu ứng chỉ chạy một lần
+}
+
+// ================== Hiệu ứng hoàn thành ==================
+const CONFETTI_COLORS = ['#16a34a', '#22c55e', '#1e88e5', '#1565c0', '#60a5fa', '#f59e0b'];
+
+// Bắn pháo giấy từ toạ độ (x, y); big = bắn to khi xong hết việc trong ngày
+function celebrate(x, y, big) {
+  if (reduceMotion) return;
+  const count = big ? 70 : 18;
+  for (let i = 0; i < count; i++) {
+    const p = document.createElement('span');
+    p.className = `confetti ${i % 3 === 0 ? 'round' : ''}`;
+    const angle = Math.random() * Math.PI * 2;
+    const dist = (big ? 120 : 40) + Math.random() * (big ? 200 : 50);
+    p.style.left = `${x}px`;
+    p.style.top = `${y}px`;
+    p.style.background = CONFETTI_COLORS[i % CONFETTI_COLORS.length];
+    p.style.setProperty('--dx', `${Math.cos(angle) * dist}px`);
+    p.style.setProperty('--dy', `${Math.sin(angle) * dist + (big ? 60 : 20)}px`);
+    p.style.setProperty('--rot', `${Math.random() * 720 - 360}deg`);
+    p.style.animationDuration = `${(big ? 1100 : 650) + Math.random() * 400}ms`;
+    p.addEventListener('animationend', () => p.remove());
+    document.body.appendChild(p);
+  }
+}
+
+let toastTimer;
+function showToast(message, isCelebrate) {
+  const toast = $('toast');
+  toast.textContent = message;
+  toast.classList.toggle('celebrate', !!isCelebrate);
+  toast.hidden = false;
+  toast.classList.remove('show');
+  void toast.offsetWidth; // khởi động lại chuyển động
+  toast.classList.add('show');
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => {
+    toast.classList.remove('show');
+    toastTimer = setTimeout(() => (toast.hidden = true), 300);
+  }, 2600);
+}
+
+// Đánh dấu xong + chạy hiệu ứng; originEl là nút tích được bấm
+function completeTask(task, originEl) {
+  const rect = originEl.getBoundingClientRect();
+  const x = rect.left + rect.width / 2;
+  const y = rect.top + rect.height / 2;
+
+  task.done = true;
+  saveTasks();
+  justCompletedId = task.id;
+  render();
+
+  const left = tasks.filter((t) => t.date === task.date && !t.done).length;
+  const shortName = task.name.length > 40 ? `${task.name.slice(0, 40)}…` : task.name;
+
+  if (left === 0) {
+    celebrate(x, y, true);
+    showToast('🎉 Tuyệt vời! Bạn đã hoàn thành hết việc trong ngày', true);
+  } else {
+    celebrate(x, y, false);
+    showToast(`✓ Đã xong "${shortName}". Còn ${left} việc trong ngày`);
+  }
 }
 
 // ================== Cột tổng kết tuần ==================
@@ -363,7 +429,12 @@ list.addEventListener('click', (e) => {
 
   if (btn.dataset.action === 'toggle') {
     const task = tasks.find((t) => t.id === id);
-    if (task) task.done = !task.done;
+    if (!task) return;
+    if (!task.done) {
+      completeTask(task, btn); // tích xong: có hiệu ứng
+      return;
+    }
+    task.done = false; // bỏ tích: không hiệu ứng
   } else if (btn.dataset.action === 'delete') {
     // Bấm lần 1: hỏi xác nhận ngay trên nút; bấm lần 2 trong 3 giây: xoá
     if (btn.dataset.confirm !== '1') {
@@ -389,10 +460,14 @@ $('weekGroups').addEventListener('click', (e) => {
   const check = e.target.closest('.week-check');
   if (check) {
     const task = tasks.find((t) => t.id === check.dataset.id);
-    if (task) {
-      task.done = true;
-      saveTasks();
-      render();
+    if (!task || check.disabled) return;
+    check.disabled = true;
+    if (reduceMotion) {
+      completeTask(task, check);
+    } else {
+      // Cho việc trượt ra khỏi cột rồi mới cập nhật
+      check.closest('.week-item').classList.add('leaving');
+      setTimeout(() => completeTask(task, check), 330);
     }
     return;
   }

@@ -7,7 +7,7 @@
 - Thêm công việc kèm **giờ bắt đầu – giờ kết thúc**, danh sách tự sắp xếp theo giờ
 - Thống kê: số việc, số việc đã xong, tổng thời gian trong ngày, số việc chưa xong trong tuần
 - Thanh tiến độ % hoàn thành của ngày
-- Việc **đã xong** hiện **tích xanh** ✅
+- Việc **đã xong** hiện **tích xanh** ✅, kèm hiệu ứng: dấu tích tự vẽ, gạch ngang chữ, pháo giấy và thông báo nhỏ; xong hết việc trong ngày thì pháo giấy bắn to hơn (tự tắt nếu hệ điều hành bật chế độ giảm chuyển động)
 - Việc **chưa làm** hiện **cảnh báo phải hoàn thành trong tuần** (hạn chót Chủ nhật), kèm số ngày còn lại; quá tuần thì báo **quá hạn** màu đỏ
 - **Cột tổng kết tuần** bên phải: gom mọi việc chưa xong trong tuần theo từng ngày, kèm tổng số việc, tổng thời gian và hạn chót; tích xong nhanh ngay tại cột, bấm tên ngày để chuyển sang ngày đó
 - Lọc: Tất cả / Chưa làm / Đã xong
