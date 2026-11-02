@@ -59,6 +59,19 @@ button { font-family: inherit; cursor: pointer; }
   flex-wrap: wrap;
   margin-bottom: 24px;
 }
+.brand { display: flex; align-items: center; gap: 14px; min-width: 0; }
+.logo {
+  width: 52px;
+  height: 52px;
+  flex-shrink: 0;
+  border-radius: 13px;
+  box-shadow: 0 6px 16px rgba(21, 101, 192, 0.25);
+}
+@media (prefers-reduced-motion: no-preference) {
+  .logo { transition: transform .25s cubic-bezier(.3, 1.6, .5, 1); }
+  .brand:hover .logo { transform: rotate(-8deg) scale(1.06); }
+}
+
 .eyebrow {
   color: var(--blue-500);
   font-size: 13px;
@@ -459,6 +472,8 @@ button:focus-visible { outline: 2px solid var(--blue-500); outline-offset: 2px; 
 /* ---------- Mobile ---------- */
 @media (max-width: 560px) {
   .week-panel { padding: 18px; }
+  .logo { width: 44px; height: 44px; border-radius: 11px; }
+  .header h1 { font-size: 22px; }
   body { padding-block: 16px; }
   .app { padding: 18px; }
   .stats { grid-template-columns: repeat(2, 1fr); }

@@ -1,4 +1,6 @@
-# 📋 To-Do List Trong Ngày
+<p align="center"><img src="logo.svg" width="96" alt="Logo To-Do List Trong Ngày"></p>
+
+# To-Do List Trong Ngày
 
 Ứng dụng web quản lý công việc theo dòng thời gian trong ngày, tông màu trắng – xanh nước biển.
 
@@ -23,6 +25,9 @@
 ├── index.html   # Giao diện
 ├── style.css    # Màu sắc & bố cục
 ├── script.js    # Logic xử lý
+├── logo.svg     # Logo gốc (dùng làm favicon)
+├── favicon-32.png, apple-touch-icon.png, icon-192.png, icon-512.png  # Icon các cỡ
+├── site.webmanifest  # Cho phép "Thêm vào màn hình chính" trên điện thoại
 └── README.md
 ```
 

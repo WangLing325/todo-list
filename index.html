@@ -4,6 +4,16 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>To-Do List Trong Ngày</title>
+  <!-- Logo / biểu tượng web -->
+  <link rel="icon" type="image/svg+xml" href="logo.svg">
+  <link rel="icon" type="image/png" sizes="32x32" href="favicon-32.png">
+  <link rel="apple-touch-icon" href="apple-touch-icon.png">
+  <link rel="manifest" href="site.webmanifest">
+  <meta name="theme-color" content="#1565c0">
+  <meta name="description" content="To-do list theo giờ trong ngày, nhắc việc chưa làm phải hoàn thành trong tuần.">
+  <meta property="og:title" content="To-Do List Trong Ngày">
+  <meta property="og:description" content="Lên lịch việc theo giờ, tích xanh khi xong, nhắc việc tồn đọng trong tuần.">
+  <meta property="og:image" content="icon-512.png">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:wght@400;500;600;700&display=swap" rel="stylesheet">
@@ -14,9 +24,12 @@
   <main class="app">
     <!-- Tiêu đề + điều hướng ngày -->
     <header class="header">
-      <div>
-        <p class="eyebrow">Kế hoạch trong ngày</p>
-        <h1 id="dateTitle">Hôm nay</h1>
+      <div class="brand">
+        <img class="logo" src="logo.svg" alt="Logo To-Do List Trong Ngày" width="52" height="52">
+        <div>
+          <p class="eyebrow">Kế hoạch trong ngày</p>
+          <h1 id="dateTitle">Hôm nay</h1>
+        </div>
       </div>
       <div class="day-nav">
         <button id="soundBtn" class="icon-btn sound-btn" aria-label="Tắt âm thanh" aria-pressed="false" title="Bật/tắt âm thanh"></button>
