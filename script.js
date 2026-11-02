@@ -7,6 +7,9 @@ let tasks = loadTasks();
 let currentDate = toKey(new Date()); // ngày đang xem, dạng "YYYY-MM-DD"
 let currentFilter = 'all';
 let justCompletedId = null; // việc vừa tích xong, để chạy hiệu ứng sau khi vẽ lại
+let editingId = null;       // việc đang được sửa
+let editDraft = null;       // nội dung đang gõ dở trong ô sửa (giữ lại khi trang vẽ lại)
+let justEditedId = null;    // việc vừa sửa xong, để lóe sáng
 const reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
 
 // ================== Âm thanh (Web Audio API, không cần file) ==================
@@ -61,6 +64,8 @@ const Sound = (() => {
       tone(1318.5, 0.42, 0.6, 'sine', 0.11);
       tone(1568, 0.42, 0.6, 'sine', 0.07);
     },
+    // Lưu chỉnh sửa: hai nốt nhẹ
+    save: () => { tone(698.46, 0, 0.08, 'sine', 0.1); tone(932.33, 0.07, 0.14, 'sine', 0.1); },
     // Bỏ tích: trượt xuống nhẹ
     uncheck: () => tone(600, 0, 0.14, 'sine', 0.1, 380),
     // Bấm xoá lần 1 (hỏi lại)
@@ -192,10 +197,89 @@ const CHECK_SVG = `
 
 const BADGE_ICON = { done: '✓', warn: '⚠', overdue: '⛔' };
 
+const EDIT_SVG = `
+  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+    <path d="M12 20h9"></path>
+    <path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4Z"></path>
+  </svg>`;
+
+// Thẻ việc ở chế độ sửa: tên, giờ bắt đầu, giờ kết thúc, ngày
+function createEditItem(task) {
+  const draft = editDraft && editDraft.id === task.id ? editDraft : task;
+  const li = document.createElement('li');
+  li.className = 'task editing';
+  li.dataset.id = task.id;
+
+  const form = document.createElement('form');
+  form.className = 'edit-form';
+  form.dataset.id = task.id;
+  form.noValidate = true;
+  form.setAttribute('aria-label', 'Sửa công việc');
+  form.innerHTML = `
+    <label class="edit-field edit-title">Tên công việc
+      <input type="text" name="title" id="edit-title-${task.id}" maxlength="100" autocomplete="off">
+    </label>
+    <label class="edit-field">Bắt đầu
+      <input type="time" name="start" id="edit-start-${task.id}">
+    </label>
+    <label class="edit-field">Kết thúc
+      <input type="time" name="end" id="edit-end-${task.id}">
+    </label>
+    <label class="edit-field edit-date">Ngày
+      <input type="date" name="date" id="edit-date-${task.id}">
+    </label>
+    <p class="form-error edit-error" role="alert"></p>
+    <div class="edit-actions">
+      <span class="edit-hint">Enter để lưu · Esc để huỷ</span>
+      <button type="button" class="btn-ghost" data-action="cancel-edit">Huỷ</button>
+      <button type="submit" class="btn-primary">Lưu</button>
+    </div>`;
+
+  // Gán giá trị bằng thuộc tính (không chèn vào HTML) để an toàn với mọi ký tự
+  form.querySelector('[name="title"]').value = draft.name;
+  form.querySelector('[name="start"]').value = draft.start;
+  form.querySelector('[name="end"]').value = draft.end;
+  form.querySelector('[name="date"]').value = draft.date;
+  if (draft.error) form.querySelector('.edit-error').textContent = draft.error;
+
+  li.appendChild(form);
+  return li;
+}
+
+function readEditForm(form) {
+  const get = (n) => form.querySelector(`[name="${n}"]`).value;
+  return {
+    id: form.dataset.id,
+    name: get('title'),
+    start: get('start'),
+    end: get('end'),
+    date: get('date'),
+    error: form.querySelector('.edit-error').textContent,
+  };
+}
+
+function startEdit(id) {
+  editingId = id;
+  editDraft = null;
+  render();
+  const input = list.querySelector('.edit-form [name="title"]');
+  if (input) { input.focus(); input.select(); }
+}
+
+function cancelEdit() {
+  const id = editingId;
+  editingId = null;
+  editDraft = null;
+  render();
+  list.querySelector(`.task[data-id="${id}"] .edit`)?.focus();
+}
+
 function createTaskItem(task) {
+  if (task.id === editingId) return createEditItem(task);
+
   const status = getStatus(task);
   const li = document.createElement('li');
-  li.className = `task ${task.done ? 'done' : ''} ${status.type === 'overdue' ? 'overdue' : ''} ${task.id === justCompletedId ? 'just-done' : ''}`;
+  li.className = `task ${task.done ? 'done' : ''} ${status.type === 'overdue' ? 'overdue' : ''} ${task.id === justCompletedId ? 'just-done' : ''} ${task.id === justEditedId ? 'just-edited' : ''}`;
   li.dataset.id = task.id;
 
   // Cột thời gian
@@ -214,6 +298,7 @@ function createTaskItem(task) {
   const body = document.createElement('div');
   const name = document.createElement('p');
   name.className = 'task-name';
+  name.title = 'Nhấp đúp để sửa';
   name.textContent = task.name; // textContent để tránh chèn HTML
 
   const duration = document.createElement('p');
@@ -233,11 +318,27 @@ function createTaskItem(task) {
   del.setAttribute('aria-label', 'Xoá công việc');
   del.textContent = '×';
 
-  li.append(time, check, body, del);
+  // Nút sửa
+  const edit = document.createElement('button');
+  edit.className = 'edit';
+  edit.dataset.action = 'edit';
+  edit.setAttribute('aria-label', 'Sửa tên và giờ');
+  edit.title = 'Sửa';
+  edit.innerHTML = EDIT_SVG;
+
+  const actions = document.createElement('div');
+  actions.className = 'task-actions';
+  actions.append(edit, del);
+
+  li.append(time, check, body, actions);
   return li;
 }
 
 function render() {
+  // Giữ lại nội dung đang gõ dở nếu có ô sửa đang mở
+  const openForm = list.querySelector('.edit-form');
+  if (openForm) editDraft = readEditForm(openForm);
+
   const viewDate = fromKey(currentDate);
   const isToday = currentDate === toKey(new Date());
 
@@ -286,6 +387,7 @@ function render() {
 
   renderWeekPanel(viewDate);
   justCompletedId = null; // hiệu ứng chỉ chạy một lần
+  justEditedId = null;
 }
 
 // ================== Hiệu ứng hoàn thành ==================
@@ -522,6 +624,17 @@ list.addEventListener('click', (e) => {
   if (!btn) return;
   const id = btn.closest('.task').dataset.id;
 
+  if (btn.dataset.action === 'edit') {
+    Sound.play('click');
+    startEdit(id);
+    return;
+  }
+  if (btn.dataset.action === 'cancel-edit') {
+    Sound.play('click');
+    cancelEdit();
+    return;
+  }
+
   if (btn.dataset.action === 'toggle') {
     const task = tasks.find((t) => t.id === id);
     if (!task) return;
@@ -551,6 +664,80 @@ list.addEventListener('click', (e) => {
   }
   saveTasks();
   render();
+});
+
+// Nhấp đúp vào tên việc để sửa nhanh
+list.addEventListener('dblclick', (e) => {
+  const nameEl = e.target.closest('.task-name');
+  if (!nameEl) return;
+  window.getSelection()?.removeAllRanges(); // bỏ phần chữ bị bôi đen do nhấp đúp
+  Sound.play('click');
+  startEdit(nameEl.closest('.task').dataset.id);
+});
+
+// Esc để huỷ sửa
+list.addEventListener('keydown', (e) => {
+  if (e.key === 'Escape' && e.target.closest('.edit-form')) {
+    e.preventDefault();
+    cancelEdit();
+  }
+});
+
+// Lưu chỉnh sửa (Enter hoặc nút Lưu)
+list.addEventListener('submit', (e) => {
+  const f = e.target.closest('.edit-form');
+  if (!f) return;
+  e.preventDefault();
+
+  const task = tasks.find((t) => t.id === f.dataset.id);
+  if (!task) return;
+  const v = readEditForm(f);
+  const name = v.name.trim();
+  const errorEl = f.querySelector('.edit-error');
+  const fail = (msg, field) => {
+    errorEl.textContent = msg;
+    Sound.play('error');
+    f.querySelector(`[name="${field}"]`)?.focus();
+  };
+
+  if (!name) return fail('Tên công việc không được để trống.', 'title');
+  if (!v.start || !v.end) return fail('Vui lòng nhập đủ giờ bắt đầu và giờ kết thúc.', v.start ? 'end' : 'start');
+  if (toMinutes(v.end) <= toMinutes(v.start)) return fail('Giờ kết thúc phải sau giờ bắt đầu.', 'end');
+  if (!v.date) return fail('Vui lòng chọn ngày.', 'date');
+
+  const unchanged = name === task.name && v.start === task.start && v.end === task.end && v.date === task.date;
+  const overlap = tasks.find((t) =>
+    t.id !== task.id &&
+    t.date === v.date &&
+    toMinutes(v.start) < toMinutes(t.end) &&
+    toMinutes(v.end) > toMinutes(t.start)
+  );
+  const movedDay = v.date !== task.date;
+
+  Object.assign(task, { name, start: v.start, end: v.end, date: v.date });
+  saveTasks();
+
+  editingId = null;
+  editDraft = null;
+  justEditedId = task.id;
+  render();
+
+  const shortName = name.length > 40 ? `${name.slice(0, 40)}…` : name;
+  if (unchanged) {
+    showToast('Không có gì thay đổi');
+  } else if (overlap) {
+    Sound.play('warn');
+    showToast(`Đã lưu. Lưu ý: khung giờ trùng với "${overlap.name}"`);
+  } else if (movedDay) {
+    const d = fromKey(v.date);
+    Sound.play('save');
+    showToast(`✓ Đã chuyển "${shortName}" sang ${WEEKDAYS[d.getDay()]} ${formatDate(d)}`);
+  } else {
+    Sound.play('save');
+    showToast(`✓ Đã lưu thay đổi cho "${shortName}"`);
+  }
+  // Trả con trỏ về nút sửa của việc vừa lưu (nếu việc vẫn ở ngày đang xem)
+  list.querySelector(`.task[data-id="${task.id}"] .edit`)?.focus({ preventScroll: true });
 });
 
 // Cột tuần: tích xong nhanh hoặc bấm tên ngày để chuyển sang ngày đó
@@ -637,6 +824,7 @@ $('soundBtn').addEventListener('click', () => {
 renderSoundBtn();
 
 // Cập nhật số ngày còn lại mỗi phút
-setInterval(render, 60 * 1000);
+// (bỏ qua khi đang sửa để không làm mất con trỏ trong ô nhập)
+setInterval(() => { if (!editingId) render(); }, 60 * 1000);
 
 render();

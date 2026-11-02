@@ -258,6 +258,82 @@ button { font-family: inherit; cursor: pointer; }
   border-radius: 8px;
 }
 .delete:hover { background: var(--red-bg); color: var(--red); }
+
+/* ---------- Sửa việc ---------- */
+.task-actions { display: flex; align-items: center; gap: 2px; }
+.edit {
+  width: 32px;
+  height: 32px;
+  border: none;
+  background: transparent;
+  color: #9fb3c8;
+  border-radius: 8px;
+  display: grid;
+  place-items: center;
+}
+.edit svg { width: 16px; height: 16px; }
+.edit:hover { background: var(--blue-100); color: var(--blue-700); }
+.task-name { cursor: default; }
+
+.task.editing {
+  display: block;
+  border-left-color: var(--blue-500);
+  background: var(--blue-50);
+  box-shadow: 0 0 0 3px rgba(30, 136, 229, 0.12);
+}
+.edit-form {
+  display: grid;
+  grid-template-columns: 1fr 1fr 1.3fr;
+  gap: 10px;
+}
+.edit-field {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  font-size: 13px;
+  color: var(--muted);
+  min-width: 0;
+}
+.edit-title { grid-column: 1 / -1; }
+.edit-field input {
+  width: 100%;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 9px 12px;
+  font: inherit;
+  font-size: 15px;
+  color: var(--text);
+  background: var(--white);
+  outline: none;
+  transition: border-color .15s, box-shadow .15s;
+}
+.edit-title input { font-weight: 600; font-size: 16px; }
+.edit-field input:focus {
+  border-color: var(--blue-500);
+  box-shadow: 0 0 0 3px rgba(30, 136, 229, 0.18);
+}
+.edit-error { grid-column: 1 / -1; margin-top: 0; }
+.edit-actions {
+  grid-column: 1 / -1;
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 8px;
+}
+.edit-hint { margin-right: auto; font-size: 12px; color: var(--muted); }
+.btn-ghost {
+  border: 1px solid var(--border);
+  background: var(--white);
+  color: var(--muted);
+  border-radius: 10px;
+  height: 42px;
+  padding: 0 16px;
+  font-weight: 600;
+  font-size: 15px;
+  transition: border-color .15s, color .15s;
+}
+.btn-ghost:hover { border-color: var(--blue-500); color: var(--blue-700); }
+.edit-actions .btn-primary { padding: 0 22px; }
 .delete.confirming {
   width: auto;
   padding: 0 10px;
@@ -440,6 +516,13 @@ button:focus-visible { outline: 2px solid var(--blue-500); outline-offset: 2px; 
   }
   .task.just-done .badge-done { animation: badge-in 450ms 200ms ease both; }
   .week-item.leaving { animation: week-leave 350ms ease forwards; }
+  .task.just-edited { animation: edit-flash 900ms ease; }
+  .task.editing { animation: badge-in 200ms ease; }
+}
+
+@keyframes edit-flash {
+  0%, 30% { background: var(--blue-100); box-shadow: 0 0 0 4px rgba(30, 136, 229, 0.18); }
+  100%    { background: var(--white); box-shadow: none; }
 }
 
 @keyframes done-flash {
@@ -473,6 +556,11 @@ button:focus-visible { outline: 2px solid var(--blue-500); outline-offset: 2px; 
 @media (max-width: 560px) {
   .week-panel { padding: 18px; }
   .logo { width: 44px; height: 44px; border-radius: 11px; }
+  .edit-form { grid-template-columns: 1fr 1fr; }
+  .edit-date { grid-column: 1 / -1; }
+  .edit-hint { display: none; }
+  .task-actions { flex-direction: column; margin: -4px -4px 0 0; }
+  .edit-actions .btn-ghost, .edit-actions .btn-primary { flex: 1; }
   .header h1 { font-size: 22px; }
   body { padding-block: 16px; }
   .app { padding: 18px; }
