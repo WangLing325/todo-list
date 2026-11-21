@@ -2,126 +2,120 @@
 <html lang="vi">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
   <title>To-Do List Trong Ngày</title>
   <!-- Logo / biểu tượng web -->
   <link rel="icon" type="image/svg+xml" href="logo.svg">
   <link rel="icon" type="image/png" sizes="32x32" href="favicon-32.png">
   <link rel="apple-touch-icon" href="apple-touch-icon.png">
   <link rel="manifest" href="site.webmanifest">
-  <meta name="theme-color" content="#1565c0">
+  <meta name="theme-color" content="#0a5bb5">
   <meta name="description" content="To-do list theo giờ trong ngày, nhắc việc chưa làm phải hoàn thành trong tuần.">
   <meta property="og:title" content="To-Do List Trong Ngày">
   <meta property="og:description" content="Lên lịch việc theo giờ, tích xanh khi xong, nhắc việc tồn đọng trong tuần.">
   <meta property="og:image" content="icon-512.png">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@500;600&family=Be+Vietnam+Pro:wght@400;500;600&family=Bricolage+Grotesque:opsz,wght@12..96,600;12..96,700&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="style.css">
 </head>
 <body>
   <div class="layout">
-  <main class="app">
-    <!-- Tiêu đề + điều hướng ngày -->
-    <header class="header">
-      <div class="brand">
-        <img class="logo" src="logo.svg" alt="Logo To-Do List Trong Ngày" width="52" height="52">
-        <div>
-          <p class="eyebrow">Kế hoạch trong ngày</p>
-          <h1 id="dateTitle">Hôm nay</h1>
+    <main class="day">
+      <!-- Thanh trên cùng: tên web + điều hướng ngày -->
+      <header class="topbar">
+        <a class="brand" href="./" aria-label="To-Do List Trong Ngày, về hôm nay">
+          <img class="logo" src="logo.svg" alt="" width="36" height="36">
+          <span class="brand-name">To-Do trong ngày</span>
+        </a>
+        <div class="controls">
+          <button id="soundBtn" class="icon-btn" type="button" aria-label="Tắt âm thanh" aria-pressed="false" title="Bật/tắt âm thanh"></button>
+          <div class="day-nav" role="group" aria-label="Chọn ngày">
+            <button id="prevDay" type="button" aria-label="Ngày trước">
+              <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M15 5l-7 7 7 7"></path></svg>
+            </button>
+            <button id="todayBtn" type="button">Hôm nay</button>
+            <button id="nextDay" type="button" aria-label="Ngày sau">
+              <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9 5l7 7-7 7"></path></svg>
+            </button>
+          </div>
         </div>
-      </div>
-      <div class="day-nav">
-        <button id="soundBtn" class="icon-btn sound-btn" aria-label="Tắt âm thanh" aria-pressed="false" title="Bật/tắt âm thanh"></button>
-        <button id="prevDay" class="icon-btn" aria-label="Ngày trước">&#8249;</button>
-        <button id="todayBtn" class="today-btn">Hôm nay</button>
-        <button id="nextDay" class="icon-btn" aria-label="Ngày sau">&#8250;</button>
-      </div>
-    </header>
+      </header>
 
-    <!-- Thống kê -->
-    <section class="stats">
-      <div class="stat">
-        <span id="statTotal">0</span>
-        <small>Công việc</small>
-      </div>
-      <div class="stat">
-        <span id="statDone">0</span>
-        <small>Đã xong</small>
-      </div>
-      <div class="stat">
-        <span id="statHours">0</span>
-        <small>Tổng thời gian</small>
-      </div>
-      <div class="stat stat-warn">
-        <span id="statWeek">0</span>
-        <small>Chưa xong trong tuần</small>
-      </div>
-    </section>
+      <!-- Ngày đang xem + tóm tắt -->
+      <section class="day-head" aria-labelledby="dateTitle">
+        <h1 id="dateTitle">Hôm nay</h1>
+        <p class="day-summary">
+          <span id="dayChip" class="chip">Hôm nay</span>
+          <span id="daySummary"></span>
+        </p>
 
-    <div class="progress" aria-label="Tiến độ trong ngày">
-      <div id="progressBar" class="progress-bar"></div>
-    </div>
-    <p id="progressText" class="progress-text">0% hoàn thành</p>
+        <!-- Thước 24 giờ: mỗi khối là một việc đặt đúng giờ -->
+        <div class="dayline" aria-hidden="true">
+          <div id="daylineTrack" class="dayline-track"></div>
+          <div class="dayline-scale">
+            <span style="left:0%">0h</span>
+            <span style="left:12.5%">3h</span>
+            <span style="left:25%">6h</span>
+            <span style="left:37.5%">9h</span>
+            <span style="left:50%">12h</span>
+            <span style="left:62.5%">15h</span>
+            <span style="left:75%">18h</span>
+            <span style="left:87.5%">21h</span>
+            <span style="left:100%">24h</span>
+          </div>
+        </div>
+      </section>
 
-    <!-- Form thêm việc -->
-    <form id="taskForm" class="task-form" autocomplete="off">
-      <input id="taskName" type="text" placeholder="Bạn cần làm gì?" maxlength="100" required>
-      <div class="time-row">
-        <label>
-          Bắt đầu
+      <!-- Thêm việc -->
+      <form id="taskForm" class="composer" autocomplete="off">
+        <label class="field field-name">
+          <span class="field-label">Việc cần làm</span>
+          <input id="taskName" type="text" placeholder="Ví dụ: Ôn tiếng Anh Unit 5" maxlength="100" required>
+        </label>
+        <label class="field field-time">
+          <span class="field-label">Từ</span>
           <input id="startTime" type="time" required>
         </label>
-        <label>
-          Kết thúc
+        <label class="field field-time">
+          <span class="field-label">Đến</span>
           <input id="endTime" type="time" required>
         </label>
-        <button type="submit" class="btn-primary">+ Thêm việc</button>
+        <button type="submit" class="btn-primary">Thêm việc</button>
+        <p id="formError" class="form-error" role="alert"></p>
+      </form>
+
+      <!-- Bộ lọc -->
+      <div class="filters" role="group" aria-label="Lọc công việc">
+        <button class="filter active" type="button" data-filter="all" aria-pressed="true">Tất cả <span id="countAll">0</span></button>
+        <button class="filter" type="button" data-filter="pending" aria-pressed="false">Chưa làm <span id="countPending">0</span></button>
+        <button class="filter" type="button" data-filter="done" aria-pressed="false">Đã xong <span id="countDone">0</span></button>
       </div>
-      <p id="formError" class="form-error" role="alert"></p>
-    </form>
 
-    <!-- Bộ lọc -->
-    <div class="filters" role="tablist">
-      <button class="filter active" data-filter="all">Tất cả</button>
-      <button class="filter" data-filter="pending">Chưa làm</button>
-      <button class="filter" data-filter="done">Đã xong</button>
-    </div>
+      <!-- Dòng thời gian trong ngày -->
+      <ul id="taskList" class="timeline"></ul>
+      <p id="emptyState" class="empty" hidden></p>
 
-    <!-- Danh sách việc theo dòng thời gian -->
-    <ul id="taskList" class="task-list"></ul>
-    <p id="emptyState" class="empty">Chưa có công việc nào. Thêm việc đầu tiên ở trên nhé!</p>
+      <footer class="footer">Dữ liệu chỉ lưu trên trình duyệt này.</footer>
+    </main>
 
-    <footer class="footer">Dữ liệu được lưu ngay trên trình duyệt của bạn.</footer>
-  </main>
-
-  <!-- Cột phải: tổng hợp việc chưa làm trong tuần -->
-  <aside class="week-panel" aria-labelledby="weekTitle">
-    <div class="week-head">
-      <p class="eyebrow">Tổng kết tuần</p>
-      <h2 id="weekTitle">Chưa làm trong tuần</h2>
+    <!-- Việc tồn đọng trong tuần -->
+    <aside class="week" aria-labelledby="weekTitle">
+      <h2 id="weekTitle">Tồn đọng tuần này</h2>
       <p id="weekRange" class="week-range"></p>
-    </div>
 
-    <div class="week-summary">
-      <div>
-        <span id="weekCount">0</span>
-        <small>việc tồn đọng</small>
-      </div>
-      <div>
-        <span id="weekTime">0</span>
-        <small>thời gian cần</small>
-      </div>
-    </div>
+      <p class="week-total">
+        <span id="weekCount" class="week-count">0</span>
+        <span id="weekTime" class="week-time"></span>
+      </p>
+      <p id="weekDeadline" class="week-deadline"></p>
 
-    <p id="weekDeadline" class="week-deadline"></p>
-
-    <div id="weekGroups" class="week-groups"></div>
-    <p id="weekEmpty" class="week-empty" hidden>Tuần này không còn việc nào tồn đọng. Tuyệt vời!</p>
-  </aside>
+      <div id="weekGroups" class="week-groups"></div>
+      <p id="weekEmpty" class="week-empty" hidden>Không còn việc nào tồn đọng trong tuần này.</p>
+    </aside>
   </div>
 
-  <!-- Thông báo nhỏ sau khi hoàn thành việc -->
+  <!-- Thông báo nhỏ sau mỗi thao tác -->
   <div id="toast" class="toast" role="status" aria-live="polite" hidden></div>
 
   <script src="script.js"></script>

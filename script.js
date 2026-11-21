@@ -174,34 +174,48 @@ function saveTasks() {
 // Trả về { type: 'done' | 'warn' | 'overdue', text }
 function getStatus(task) {
   if (task.done) {
-    return { type: 'done', text: 'Đã hoàn thành' };
+    return { type: 'done', text: 'Đã xong' };
   }
 
   const deadline = endOfWeek(fromKey(task.date));
   const now = new Date();
 
   if (now > deadline) {
-    return { type: 'overdue', text: `Quá hạn! Tuần đã kết thúc (CN ${formatDate(deadline)}) mà chưa hoàn thành` };
+    return { type: 'overdue', text: `Quá hạn từ CN ${formatDate(deadline)}` };
   }
 
   const daysLeft = Math.round((fromKey(toKey(deadline)) - fromKey(toKey(now))) / DAY_MS);
-  const left = daysLeft === 0 ? 'hôm nay là hạn chót' : `còn ${daysLeft} ngày`;
-  return { type: 'warn', text: `Chưa làm — phải hoàn thành trước CN ${formatDate(deadline)} (${left})` };
+  if (daysLeft === 0) {
+    return { type: 'warn', text: 'Chưa làm, hạn chót hôm nay' };
+  }
+  return { type: 'warn', text: `Hạn CN ${formatDate(deadline)}, còn ${daysLeft} ngày` };
 }
 
 // ================== Hiển thị ==================
-const CHECK_SVG = `
-  <svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="3" stroke-linecap="round" stroke-linejoin="round">
-    <polyline points="20 6 9 17 4 12"></polyline>
-  </svg>`;
+const CHECK_SVG = `<svg viewBox="0 0 24 24" aria-hidden="true"><polyline points="20 6 9 17 4 12"></polyline></svg>`;
 
-const BADGE_ICON = { done: '✓', warn: '⚠', overdue: '⛔' };
+const STATUS_ICON = {
+  done: '<svg viewBox="0 0 24 24" aria-hidden="true"><polyline points="20 6 9 17 4 12"></polyline></svg>',
+  warn: '<svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9"></circle><polyline points="12 7 12 12 15 14"></polyline></svg>',
+  overdue: '<svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9"></circle><line x1="12" y1="7.5" x2="12" y2="13"></line><line x1="12" y1="16.5" x2="12" y2="16.6"></line></svg>',
+};
 
-const EDIT_SVG = `
-  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-    <path d="M12 20h9"></path>
-    <path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4Z"></path>
-  </svg>`;
+const EDIT_SVG = `<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 20h9"></path><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4Z"></path></svg>`;
+const DELETE_SVG = `<svg viewBox="0 0 24 24" aria-hidden="true"><line x1="6" y1="6" x2="18" y2="18"></line><line x1="18" y1="6" x2="6" y2="18"></line></svg>`;
+
+function nowMinutes() {
+  const n = new Date();
+  return n.getHours() * 60 + n.getMinutes();
+}
+
+function formatClock(min) {
+  return `${pad(Math.floor(min / 60))}:${pad(min % 60)}`;
+}
+
+function formatLongDate(date) {
+  const sameYear = date.getFullYear() === new Date().getFullYear();
+  return `${WEEKDAYS[date.getDay()]}, ${date.getDate()} tháng ${date.getMonth() + 1}${sameYear ? '' : ` năm ${date.getFullYear()}`}`;
+}
 
 // Thẻ việc ở chế độ sửa: tên, giờ bắt đầu, giờ kết thúc, ngày
 function createEditItem(task) {
@@ -219,10 +233,10 @@ function createEditItem(task) {
     <label class="edit-field edit-title">Tên công việc
       <input type="text" name="title" id="edit-title-${task.id}" maxlength="100" autocomplete="off">
     </label>
-    <label class="edit-field">Bắt đầu
+    <label class="edit-field">Từ
       <input type="time" name="start" id="edit-start-${task.id}">
     </label>
-    <label class="edit-field">Kết thúc
+    <label class="edit-field">Đến
       <input type="time" name="end" id="edit-end-${task.id}">
     </label>
     <label class="edit-field edit-date">Ngày
@@ -230,9 +244,9 @@ function createEditItem(task) {
     </label>
     <p class="form-error edit-error" role="alert"></p>
     <div class="edit-actions">
-      <span class="edit-hint">Enter để lưu · Esc để huỷ</span>
+      <span class="edit-hint">Enter để lưu, Esc để huỷ</span>
       <button type="button" class="btn-ghost" data-action="cancel-edit">Huỷ</button>
-      <button type="submit" class="btn-primary">Lưu</button>
+      <button type="submit" class="btn-primary">Lưu thay đổi</button>
     </div>`;
 
   // Gán giá trị bằng thuộc tính (không chèn vào HTML) để an toàn với mọi ký tự
@@ -279,59 +293,108 @@ function createTaskItem(task) {
 
   const status = getStatus(task);
   const li = document.createElement('li');
-  li.className = `task ${task.done ? 'done' : ''} ${status.type === 'overdue' ? 'overdue' : ''} ${task.id === justCompletedId ? 'just-done' : ''} ${task.id === justEditedId ? 'just-edited' : ''}`;
+  li.className = [
+    'task',
+    task.done ? 'done' : '',
+    status.type === 'overdue' ? 'overdue' : '',
+    task.id === justCompletedId ? 'just-done' : '',
+    task.id === justEditedId ? 'just-edited' : '',
+  ].filter(Boolean).join(' ');
   li.dataset.id = task.id;
 
-  // Cột thời gian
+  // Cột giờ
   const time = document.createElement('div');
   time.className = 'task-time';
-  time.innerHTML = `${task.start}<span>${task.end}</span>`;
+  time.innerHTML = `<strong>${task.start}</strong><span>${task.end}</span>`;
 
-  // Nút tích
+  // Trục dọc + nút tích
+  const rail = document.createElement('div');
+  rail.className = 'rail';
   const check = document.createElement('button');
+  check.type = 'button';
   check.className = 'check';
   check.dataset.action = 'toggle';
-  check.setAttribute('aria-label', task.done ? 'Đánh dấu chưa xong' : 'Đánh dấu đã xong');
+  check.setAttribute('aria-label', task.done ? `Bỏ đánh dấu xong "${task.name}"` : `Đánh dấu xong "${task.name}"`);
   check.innerHTML = CHECK_SVG;
+  rail.appendChild(check);
 
   // Nội dung
   const body = document.createElement('div');
+  body.className = 'task-body';
   const name = document.createElement('p');
   name.className = 'task-name';
   name.title = 'Nhấp đúp để sửa';
   name.textContent = task.name; // textContent để tránh chèn HTML
 
-  const duration = document.createElement('p');
-  duration.className = 'task-duration';
+  const meta = document.createElement('div');
+  meta.className = 'task-meta';
+  const duration = document.createElement('span');
   duration.textContent = formatDuration(toMinutes(task.end) - toMinutes(task.start));
-
   const badge = document.createElement('span');
-  badge.className = `badge badge-${status.type}`;
-  badge.textContent = `${BADGE_ICON[status.type]} ${status.text}`;
+  badge.className = `status status-${status.type}`;
+  badge.innerHTML = STATUS_ICON[status.type];
+  badge.append(status.text);
+  meta.append(duration, badge);
 
-  body.append(name, duration, badge);
+  body.append(name, meta);
 
-  // Nút xoá
-  const del = document.createElement('button');
-  del.className = 'delete';
-  del.dataset.action = 'delete';
-  del.setAttribute('aria-label', 'Xoá công việc');
-  del.textContent = '×';
-
-  // Nút sửa
+  // Nút sửa và xoá
   const edit = document.createElement('button');
+  edit.type = 'button';
   edit.className = 'edit';
   edit.dataset.action = 'edit';
-  edit.setAttribute('aria-label', 'Sửa tên và giờ');
+  edit.setAttribute('aria-label', `Sửa "${task.name}"`);
   edit.title = 'Sửa';
   edit.innerHTML = EDIT_SVG;
+
+  const del = document.createElement('button');
+  del.type = 'button';
+  del.className = 'delete';
+  del.dataset.action = 'delete';
+  del.setAttribute('aria-label', `Xoá "${task.name}"`);
+  del.title = 'Xoá';
+  del.innerHTML = DELETE_SVG;
 
   const actions = document.createElement('div');
   actions.className = 'task-actions';
   actions.append(edit, del);
 
-  li.append(time, check, body, actions);
+  li.append(time, rail, body, actions);
   return li;
+}
+
+// Dòng "Bây giờ" chèn vào dòng thời gian của hôm nay
+function createNowRow() {
+  const li = document.createElement('li');
+  li.className = 'task now-row';
+  li.setAttribute('aria-label', `Bây giờ là ${formatClock(nowMinutes())}`);
+  li.innerHTML = `
+    <div class="task-time"><strong>${formatClock(nowMinutes())}</strong></div>
+    <div class="rail"></div>
+    <div class="now-label">Bây giờ</div>`;
+  return li;
+}
+
+// Thước 24 giờ phía trên
+function renderDayline(dayTasks, isToday) {
+  const track = $('daylineTrack');
+  track.innerHTML = '';
+  dayTasks.forEach((t) => {
+    const start = toMinutes(t.start);
+    const end = toMinutes(t.end);
+    const block = document.createElement('span');
+    block.className = `block ${t.done ? 'done' : getStatus(t).type === 'overdue' ? 'overdue' : ''}`;
+    block.style.left = `${(start / 1440) * 100}%`;
+    block.style.width = `${((end - start) / 1440) * 100}%`;
+    block.title = `${t.start}–${t.end} ${t.name}`;
+    track.appendChild(block);
+  });
+  if (isToday) {
+    const now = document.createElement('span');
+    now.className = 'now';
+    now.style.left = `${(nowMinutes() / 1440) * 100}%`;
+    track.appendChild(now);
+  }
 }
 
 function render() {
@@ -340,35 +403,36 @@ function render() {
   if (openForm) editDraft = readEditForm(openForm);
 
   const viewDate = fromKey(currentDate);
-  const isToday = currentDate === toKey(new Date());
+  const todayKey = toKey(new Date());
+  const isToday = currentDate === todayKey;
 
-  // Tiêu đề ngày
-  $('dateTitle').textContent =
-    `${isToday ? 'Hôm nay, ' : ''}${WEEKDAYS[viewDate.getDay()]} ${formatDate(viewDate)}/${viewDate.getFullYear()}`;
+  // Tiêu đề ngày + nhãn hôm nay / đã qua / sắp tới
+  $('dateTitle').textContent = formatLongDate(viewDate);
+  const chip = $('dayChip');
+  if (isToday) { chip.textContent = 'Hôm nay'; chip.className = 'chip'; }
+  else if (currentDate < todayKey) { chip.textContent = 'Đã qua'; chip.className = 'chip past'; }
+  else { chip.textContent = 'Sắp tới'; chip.className = 'chip future'; }
+  $('todayBtn').disabled = isToday;
 
   // Việc trong ngày, sắp xếp theo giờ bắt đầu
   const dayTasks = tasks
     .filter((t) => t.date === currentDate)
     .sort((a, b) => a.start.localeCompare(b.start));
 
-  // Thống kê
   const doneCount = dayTasks.filter((t) => t.done).length;
   const totalMin = dayTasks.reduce((sum, t) => sum + toMinutes(t.end) - toMinutes(t.start), 0);
-  const weekStart = startOfWeek(viewDate);
-  const weekEnd = endOfWeek(viewDate);
-  const weekPending = tasks.filter((t) => {
-    const d = fromKey(t.date);
-    return !t.done && d >= weekStart && d <= weekEnd;
-  }).length;
 
-  $('statTotal').textContent = dayTasks.length;
-  $('statDone').textContent = doneCount;
-  $('statHours').textContent = formatHoursShort(totalMin);
-  $('statWeek').textContent = weekPending;
+  $('daySummary').textContent = dayTasks.length
+    ? (doneCount === dayTasks.length
+        ? `Đã xong cả ${dayTasks.length} việc, tổng ${formatDuration(totalMin)}.`
+        : `Đã xong ${doneCount} trên ${dayTasks.length} việc, tổng ${formatDuration(totalMin)}.`)
+    : 'Chưa có việc nào trong ngày này.';
 
-  const percent = dayTasks.length ? Math.round((doneCount / dayTasks.length) * 100) : 0;
-  $('progressBar').style.width = `${percent}%`;
-  $('progressText').textContent = `${percent}% hoàn thành`;
+  renderDayline(dayTasks, isToday);
+
+  $('countAll').textContent = dayTasks.length;
+  $('countPending').textContent = dayTasks.length - doneCount;
+  $('countDone').textContent = doneCount;
 
   // Lọc
   const visible = dayTasks.filter((t) => {
@@ -378,12 +442,21 @@ function render() {
   });
 
   list.innerHTML = '';
-  visible.forEach((t) => list.appendChild(createTaskItem(t)));
+  const nowMin = nowMinutes();
+  let nowPlaced = !isToday || currentFilter === 'done' || !visible.length;
+  visible.forEach((t) => {
+    if (!nowPlaced && toMinutes(t.start) > nowMin) {
+      list.appendChild(createNowRow());
+      nowPlaced = true;
+    }
+    list.appendChild(createTaskItem(t));
+  });
+  if (!nowPlaced) list.appendChild(createNowRow());
 
-  emptyState.style.display = visible.length ? 'none' : 'block';
+  emptyState.hidden = visible.length > 0;
   emptyState.textContent = dayTasks.length
-    ? 'Không có công việc nào khớp bộ lọc.'
-    : 'Chưa có công việc nào. Thêm việc đầu tiên ở trên nhé!';
+    ? 'Không có việc nào ở mục này.'
+    : 'Chưa có việc nào cho ngày này. Nhập việc đầu tiên vào ô phía trên.';
 
   renderWeekPanel(viewDate);
   justCompletedId = null; // hiệu ứng chỉ chạy một lần
@@ -391,7 +464,7 @@ function render() {
 }
 
 // ================== Hiệu ứng hoàn thành ==================
-const CONFETTI_COLORS = ['#16a34a', '#22c55e', '#1e88e5', '#1565c0', '#60a5fa', '#f59e0b'];
+const CONFETTI_COLORS = ['#0a5bb5', '#17803d', '#5aa2ea', '#f2b33d', '#083d7a', '#8fd3a6'];
 
 // Bắn pháo giấy từ toạ độ (x, y); big = bắn to khi xong hết việc trong ngày
 function celebrate(x, y, big) {
@@ -426,8 +499,12 @@ function showToast(message, isCelebrate) {
   clearTimeout(toastTimer);
   toastTimer = setTimeout(() => {
     toast.classList.remove('show');
-    toastTimer = setTimeout(() => (toast.hidden = true), 300);
+    toastTimer = setTimeout(() => (toast.hidden = true), 250);
   }, 2600);
+}
+
+function shorten(text) {
+  return text.length > 40 ? `${text.slice(0, 40)}…` : text;
 }
 
 // Âm thanh khi tích xong: chuông thường, hoặc nhạc mừng nếu đây là việc cuối cùng của ngày
@@ -449,25 +526,24 @@ function completeTask(task, originEl, soundPlayed = false) {
   render();
 
   const left = tasks.filter((t) => t.date === task.date && !t.done).length;
-  const shortName = task.name.length > 40 ? `${task.name.slice(0, 40)}…` : task.name;
 
   if (left === 0) {
     celebrate(x, y, true);
-    showToast('🎉 Tuyệt vời! Bạn đã hoàn thành hết việc trong ngày', true);
+    showToast('Đã xong hết việc trong ngày.', true);
   } else {
     celebrate(x, y, false);
-    showToast(`✓ Đã xong "${shortName}". Còn ${left} việc trong ngày`);
+    showToast(`Đã xong “${shorten(task.name)}”. Còn ${left} việc trong ngày.`);
   }
 }
 
-// ================== Cột tổng kết tuần ==================
+// ================== Cột tồn đọng trong tuần ==================
 function renderWeekPanel(viewDate) {
   const weekStart = startOfWeek(viewDate);
   const weekEnd = endOfWeek(viewDate);
   const todayKey = toKey(new Date());
 
   $('weekRange').textContent =
-    `Thứ Hai ${formatDate(weekStart)} – Chủ nhật ${formatDate(weekEnd)}/${weekEnd.getFullYear()}`;
+    `Thứ Hai ${formatDate(weekStart)} đến Chủ nhật ${formatDate(weekEnd)}/${weekEnd.getFullYear()}`;
 
   // Tất cả việc chưa xong trong tuần đang xem
   const pending = tasks
@@ -479,22 +555,23 @@ function renderWeekPanel(viewDate) {
 
   const totalMin = pending.reduce((sum, t) => sum + toMinutes(t.end) - toMinutes(t.start), 0);
   $('weekCount').textContent = pending.length;
-  $('weekTime').textContent = formatHoursShort(totalMin);
+  $('weekTime').textContent = pending.length
+    ? `việc chưa làm, cần ${formatDuration(totalMin)}`
+    : 'việc chưa làm';
 
   // Dòng hạn chót của tuần
   const deadlineEl = $('weekDeadline');
   const now = new Date();
-  if (!pending.length) {
-    deadlineEl.className = 'week-deadline clear';
-    deadlineEl.textContent = '✓ Đã hoàn thành hết việc trong tuần';
-  } else if (now > weekEnd) {
+  deadlineEl.hidden = pending.length === 0;
+  if (now > weekEnd) {
     deadlineEl.className = 'week-deadline overdue';
-    deadlineEl.textContent = `⛔ Tuần đã kết thúc, còn ${pending.length} việc chưa hoàn thành`;
+    deadlineEl.textContent = `Tuần đã kết thúc mà vẫn còn ${pending.length} việc chưa làm.`;
   } else {
     const daysLeft = Math.round((fromKey(toKey(weekEnd)) - fromKey(todayKey)) / DAY_MS);
-    const left = daysLeft === 0 ? 'hôm nay là hạn chót' : `còn ${daysLeft} ngày`;
     deadlineEl.className = 'week-deadline';
-    deadlineEl.textContent = `⚠ Hạn chót: Chủ nhật ${formatDate(weekEnd)} (${left})`;
+    deadlineEl.textContent = daysLeft === 0
+      ? `Hạn chót là hôm nay, Chủ nhật ${formatDate(weekEnd)}.`
+      : `Hạn chót Chủ nhật ${formatDate(weekEnd)}, còn ${daysLeft} ngày.`;
   }
 
   // Gom theo ngày
@@ -510,6 +587,7 @@ function renderWeekPanel(viewDate) {
 
     // Tiêu đề ngày: bấm để chuyển sang ngày đó
     const head = document.createElement('button');
+    head.type = 'button';
     head.className = 'week-day-head';
     head.dataset.date = dateKey;
     head.setAttribute('aria-label', `Xem ${WEEKDAYS[date.getDay()]} ${formatDate(date)}`);
@@ -539,9 +617,10 @@ function renderWeekPanel(viewDate) {
       li.className = 'week-item';
 
       const check = document.createElement('button');
+      check.type = 'button';
       check.className = 'week-check';
       check.dataset.id = t.id;
-      check.setAttribute('aria-label', `Đánh dấu "${t.name}" đã xong`);
+      check.setAttribute('aria-label', `Đánh dấu xong "${t.name}"`);
       check.innerHTML = CHECK_SVG;
 
       const time = document.createElement('span');
@@ -573,7 +652,7 @@ form.addEventListener('submit', (e) => {
   const end = endInput.value;
 
   if (!name || !start || !end) {
-    formError.textContent = 'Vui lòng nhập đủ tên công việc và thời gian.';
+    formError.textContent = 'Nhập tên việc, giờ bắt đầu và giờ kết thúc.';
     Sound.play('error');
     return;
   }
@@ -604,7 +683,7 @@ form.addEventListener('submit', (e) => {
   nameInput.focus();
 
   if (overlap) {
-    formError.textContent = `Lưu ý: khung giờ này trùng với "${overlap.name}".`;
+    formError.textContent = `Đã thêm. Khung giờ này trùng với “${overlap.name}”.`;
   }
   Sound.play(overlap ? 'warn' : 'add');
   render();
@@ -618,7 +697,7 @@ form.addEventListener('invalid', () => {
   lastInvalidAt = Date.now();
 }, true);
 
-// Uỷ quyền sự kiện cho danh sách (tích / xoá)
+// Uỷ quyền sự kiện cho danh sách (tích / sửa / xoá)
 list.addEventListener('click', (e) => {
   const btn = e.target.closest('button[data-action]');
   if (!btn) return;
@@ -650,11 +729,12 @@ list.addEventListener('click', (e) => {
       Sound.play('confirm');
       btn.dataset.confirm = '1';
       btn.textContent = 'Xoá?';
+      btn.setAttribute('aria-label', 'Bấm lần nữa để xoá');
       btn.classList.add('confirming');
       setTimeout(() => {
         if (!btn.isConnected) return;
         btn.dataset.confirm = '';
-        btn.textContent = '×';
+        btn.innerHTML = DELETE_SVG;
         btn.classList.remove('confirming');
       }, 3000);
       return;
@@ -701,9 +781,9 @@ list.addEventListener('submit', (e) => {
   };
 
   if (!name) return fail('Tên công việc không được để trống.', 'title');
-  if (!v.start || !v.end) return fail('Vui lòng nhập đủ giờ bắt đầu và giờ kết thúc.', v.start ? 'end' : 'start');
+  if (!v.start || !v.end) return fail('Nhập giờ bắt đầu và giờ kết thúc.', v.start ? 'end' : 'start');
   if (toMinutes(v.end) <= toMinutes(v.start)) return fail('Giờ kết thúc phải sau giờ bắt đầu.', 'end');
-  if (!v.date) return fail('Vui lòng chọn ngày.', 'date');
+  if (!v.date) return fail('Chọn ngày cho việc này.', 'date');
 
   const unchanged = name === task.name && v.start === task.start && v.end === task.end && v.date === task.date;
   const overlap = tasks.find((t) =>
@@ -722,19 +802,18 @@ list.addEventListener('submit', (e) => {
   justEditedId = task.id;
   render();
 
-  const shortName = name.length > 40 ? `${name.slice(0, 40)}…` : name;
   if (unchanged) {
-    showToast('Không có gì thay đổi');
+    showToast('Không có gì thay đổi.');
   } else if (overlap) {
     Sound.play('warn');
-    showToast(`Đã lưu. Lưu ý: khung giờ trùng với "${overlap.name}"`);
+    showToast(`Đã lưu. Khung giờ này trùng với “${shorten(overlap.name)}”.`);
   } else if (movedDay) {
     const d = fromKey(v.date);
     Sound.play('save');
-    showToast(`✓ Đã chuyển "${shortName}" sang ${WEEKDAYS[d.getDay()]} ${formatDate(d)}`);
+    showToast(`Đã chuyển “${shorten(name)}” sang ${WEEKDAYS[d.getDay()]} ${formatDate(d)}.`);
   } else {
     Sound.play('save');
-    showToast(`✓ Đã lưu thay đổi cho "${shortName}"`);
+    showToast('Đã lưu thay đổi.');
   }
   // Trả con trỏ về nút sửa của việc vừa lưu (nếu việc vẫn ở ngày đang xem)
   list.querySelector(`.task[data-id="${task.id}"] .edit`)?.focus({ preventScroll: true });
@@ -770,8 +849,10 @@ $('weekGroups').addEventListener('click', (e) => {
 document.querySelectorAll('.filter').forEach((btn) => {
   btn.addEventListener('click', () => {
     Sound.play('click');
-    document.querySelectorAll('.filter').forEach((b) => b.classList.remove('active'));
-    btn.classList.add('active');
+    document.querySelectorAll('.filter').forEach((b) => {
+      b.classList.toggle('active', b === btn);
+      b.setAttribute('aria-pressed', String(b === btn));
+    });
     currentFilter = btn.dataset.filter;
     render();
   });
